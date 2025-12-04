@@ -1,0 +1,319 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Simple Quiz — Register & Take Quiz</title>
+  <style>
+    :root{ --accent:#4f46e5; --muted:#6b7280; --bg:#f8fafc }
+    *{box-sizing:border-box}
+    body{font-family:Inter, system-ui, Arial, sans-serif; margin:0; background:var(--bg); color:#111}
+    .container{max-width:880px;margin:28px auto;padding:20px}
+    header{display:flex;align-items:center;gap:16px}
+    header h1{margin:0;font-size:20px}
+    .card{background:white;border-radius:12px;padding:20px;box-shadow:0 6px 18px rgba(15,23,42,0.06)}
+
+    form .row{display:flex;gap:12px;margin-bottom:12px}
+    input[type=text]{flex:1;padding:10px;border-radius:8px;border:1px solid #e6e9ee}
+    button{background:var(--accent);color:white;padding:10px 14px;border:0;border-radius:8px;cursor:pointer}
+    button.secondary{background:transparent;color:var(--accent);border:1px solid rgba(79,70,229,0.12)}
+
+    .question{border-radius:10px;padding:14px;border:1px solid #eef2ff;margin-bottom:12px}
+    .q-head{display:flex;justify-content:space-between;align-items:center}
+    .options{margin-top:8px;display:flex;flex-direction:column;gap:8px}
+    label.opt{display:flex;gap:10px;align-items:center;padding:8px;border-radius:8px;border:1px solid transparent}
+    input[type=radio]{width:16px;height:16px}
+    .feedback{margin-top:8px;font-weight:600}
+    .correct{color:green}
+    .wrong{color:red}
+    .small{font-size:13px;color:var(--muted)}
+    #resultCard{display:none}
+    .progress-wrap{background:#eef2ff;border-radius:999px;height:12px;overflow:hidden}
+    .progress{height:100%;background:linear-gradient(90deg,var(--accent),#06b6d4);width:0%}
+
+    @media (max-width:640px){.row{flex-direction:column}}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect width="24" height="24" rx="6" fill="#4f46e5"/></svg>
+      <h1>Quiz App — Register & Attempt 20 Questions</h1>
+    </header>
+
+    <!-- Registration card -->
+    <section id="registerCard" class="card" aria-labelledby="registerTitle">
+      <h2 id="registerTitle">Create your account to start</h2>
+      <p class="small">Enter your name and roll number. This will appear on your final scorecard.</p>
+      <form id="registerForm">
+        <div class="row">
+          <input id="studentName" type="text" placeholder="Your full name" required />
+          <input id="rollNo" type="text" placeholder="Roll number" required />
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <button type="submit">Start Quiz</button>
+          <button type="button" class="secondary" id="loadDemo">Load demo user</button>
+        </div>
+      </form>
+    </section>
+
+    <!-- Quiz card -->
+    <section id="quizCard" class="card" style="display:none;margin-top:18px">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <div id="userInfo" class="small">Name: <strong id="showName"></strong> • Roll: <strong id="showRoll"></strong></div>
+          <div class="small" id="qCount">0 / 20 answered</div>
+        </div>
+        <div style="width:40%">
+          <div class="progress-wrap"><div id="progress" class="progress"></div></div>
+        </div>
+      </div>
+
+      <hr style="margin:12px 0;opacity:0.6" />
+
+      <div id="questionsContainer"></div>
+
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
+        <button id="finalSubmit">Final Submit & Score</button>
+      </div>
+    </section>
+
+    <!-- Result -->
+    <section id="resultCard" class="card" style="margin-top:18px">
+      <h3>Result</h3>
+      <p id="resultSummary" class="small"></p>
+      <div id="detailedWrong"></div>
+      <div style="margin-top:12px;display:flex;gap:8px;justify-content:flex-end">
+        <button id="restart">Take Again</button>
+      </div>
+    </section>
+
+    <footer style="margin-top:18px;text-align:center;color:var(--muted);font-size:13px">This is a sample project — feel free to edit questions in the code.</footer>
+  </div>
+
+  <script>
+    // --- Questions bank (20 questions) ---
+    const questions = [
+      { q: 'What is the capital of India?', options:['Mumbai','New Delhi','Kolkata','Chennai'], a:1 },
+      { q: '2 + 2 × 3 = ?', options:['8','10','12','6'], a:0 },
+      { q: 'Which gas do plants primarily absorb?', options:['Oxygen','Nitrogen','Carbon dioxide','Hydrogen'], a:2 },
+      { q: 'Which is a prime number?', options:['21','27','31','35'], a:2 },
+      { q: 'Who wrote "Romeo and Juliet"?', options:['Charles Dickens','William Shakespeare','Mark Twain','Leo Tolstoy'], a:1 },
+      { q: 'HTML stands for?', options:['Hyper Text Markup Language','High Text Machine Language','Hyperlinks Text Mark Language','Hyper Tool Markup Language'], a:0 },
+      { q: 'Water boils at what °C (at sea level)?', options:['90','100','110','120'], a:1 },
+      { q: 'Which planet is known as the Red Planet?', options:['Venus','Mars','Jupiter','Saturn'], a:1 },
+      { q: 'Which instrument measures temperature?', options:['Barometer','Thermometer','Anemometer','Hygrometer'], a:1 },
+      { q: 'The largest ocean on Earth is?', options:['Atlantic','Indian','Arctic','Pacific'], a:3 },
+      { q: 'Which language is primarily used for Android apps (officially)?', options:['Swift','Kotlin','Ruby','Go'], a:1 },
+      { q: 'Area of a circle formula?', options:['πr','2πr','πr²','πd'], a:2 },
+      { q: 'Who is known as the Father of Economics?', options:['Adam Smith','John Maynard Keynes','Karl Marx','Milton Friedman'], a:0 },
+      { q: 'Which is a renewable energy source?', options:['Coal','Petrol','Solar','Natural gas'], a:2 },
+      { q: 'Which organ pumps blood in human body?', options:['Lungs','Kidney','Heart','Liver'], a:2 },
+      { q: 'Simplify: 5 × (2 + 3)', options:['25','30','10','15'], a:0 },
+      { q: 'Which continent is Egypt mainly in?', options:['Asia','Africa','Europe','South America'], a:1 },
+      { q: 'Which is NOT a programming language?', options:['Python','HTML','Java','C++'], a:1 },
+      { q: 'Speed of light approx (km/s)?', options:['300,000','150,000','30,000','3,000'], a:0 },
+      { q: 'Which metal is liquid at room temperature?', options:['Mercury','Iron','Gold','Silver'], a:0 }
+    ];
+
+    // State
+    let student = { name:'', roll:'' };
+    const answers = new Array(questions.length).fill(null); // store selected index
+    const checked = new Array(questions.length).fill(false); // whether user clicked "Check" for that question
+
+    // DOM refs
+    const registerCard = document.getElementById('registerCard');
+    const registerForm = document.getElementById('registerForm');
+    const studentName = document.getElementById('studentName');
+    const rollNo = document.getElementById('rollNo');
+    const loadDemo = document.getElementById('loadDemo');
+
+    const quizCard = document.getElementById('quizCard');
+    const questionsContainer = document.getElementById('questionsContainer');
+    const showName = document.getElementById('showName');
+    const showRoll = document.getElementById('showRoll');
+    const qCount = document.getElementById('qCount');
+    const progress = document.getElementById('progress');
+    const finalSubmit = document.getElementById('finalSubmit');
+
+    const resultCard = document.getElementById('resultCard');
+    const resultSummary = document.getElementById('resultSummary');
+    const detailedWrong = document.getElementById('detailedWrong');
+    const restart = document.getElementById('restart');
+
+    // Helpers
+    function updateProgress(){
+      const answered = answers.filter(a=>a!==null).length;
+      qCount.textContent = `${answered} / ${questions.length} answered`;
+      const pct = Math.round((answered / questions.length) * 100);
+      progress.style.width = pct + '%';
+    }
+
+    function createQuestionElement(idx, data){
+      const div = document.createElement('div');
+      div.className = 'question';
+      div.id = 'q-' + idx;
+
+      const head = document.createElement('div');
+      head.className = 'q-head';
+      head.innerHTML = `<strong>Q${idx+1}.</strong> <span class="small">${data.q}</span>`;
+
+      const opts = document.createElement('div');
+      opts.className = 'options';
+
+      data.options.forEach((opt, i)=>{
+        const id = `q${idx}_opt${i}`;
+        const label = document.createElement('label');
+        label.className = 'opt';
+        label.htmlFor = id;
+        label.innerHTML = `
+          <input type="radio" name="q${idx}" id="${id}" value="${i}"> <span>${opt}</span>
+        `;
+        opts.appendChild(label);
+      });
+
+      const ctlWrap = document.createElement('div');
+      ctlWrap.style.display = 'flex';
+      ctlWrap.style.justifyContent = 'space-between';
+      ctlWrap.style.alignItems = 'center';
+      ctlWrap.style.marginTop = '8px';
+
+      const feedback = document.createElement('div');
+      feedback.className = 'feedback';
+      feedback.id = `feedback-${idx}`;
+
+      const checkBtn = document.createElement('button');
+      checkBtn.type = 'button';
+      checkBtn.textContent = 'Check Answer';
+      checkBtn.onclick = ()=> checkAnswer(idx);
+
+      ctlWrap.appendChild(feedback);
+      ctlWrap.appendChild(checkBtn);
+
+      div.appendChild(head);
+      div.appendChild(opts);
+      div.appendChild(ctlWrap);
+
+      // listen for radio change to update answers
+      opts.addEventListener('change', (e)=>{
+        if(e.target && e.target.matches('input[type=radio]')){
+          answers[idx] = parseInt(e.target.value,10);
+          updateProgress();
+        }
+      });
+
+      return div;
+    }
+
+    function renderQuestions(){
+      questionsContainer.innerHTML = '';
+      questions.forEach((q, idx)=>{
+        questionsContainer.appendChild(createQuestionElement(idx,q));
+      });
+      updateProgress();
+    }
+
+    function checkAnswer(idx){
+      const fb = document.getElementById(`feedback-${idx}`);
+      const sel = answers[idx];
+      if(sel === null){
+        fb.textContent = 'Please select an option first.';
+        fb.className = 'feedback wrong';
+        return;
+      }
+      checked[idx] = true;
+      if(sel === questions[idx].a){
+        fb.textContent = 'Correct ✅';
+        fb.className = 'feedback correct';
+      } else {
+        fb.innerHTML = `Wrong ✖ — Correct: <strong>${questions[idx].options[questions[idx].a]}</strong>`;
+        fb.className = 'feedback wrong';
+      }
+      // disable inputs and button for this question after checking
+      const qDiv = document.getElementById('q-'+idx);
+      const radios = qDiv.querySelectorAll('input[type=radio]');
+      radios.forEach(r=> r.disabled = true);
+      const btn = qDiv.querySelector('button');
+      if(btn) btn.disabled = true;
+    }
+
+    // Final submit
+    finalSubmit.addEventListener('click', ()=>{
+      // ensure at least one answer attempted
+      const attempted = answers.filter(a=>a!==null).length;
+      if(attempted === 0){
+        alert('Please answer at least one question before final submit.');
+        return;
+      }
+      // auto-check any unchecked questions (so the user sees which are correct)
+      for(let i=0;i<questions.length;i++){
+        if(!checked[i] && answers[i] !== null){
+          // show transient feedback without disabling (to keep it simple)
+          const fb = document.getElementById(`feedback-${i}`);
+          if(answers[i] === questions[i].a){ fb.textContent = 'Correct ✅'; fb.className='feedback correct'; }
+          else { fb.innerHTML = `Wrong ✖ — Correct: <strong>${questions[i].options[questions[i].a]}</strong>`; fb.className='feedback wrong'; }
+        }
+      }
+
+      // compute score
+      let score = 0;
+      const wrongList = [];
+      for(let i=0;i<questions.length;i++){
+        if(answers[i] === questions[i].a) score++;
+        else wrongList.push(i);
+      }
+
+      // show result card
+      resultCard.style.display = 'block';
+      resultSummary.innerHTML = `Student: <strong>${student.name}</strong> &nbsp;|&nbsp; Roll: <strong>${student.roll}</strong><br>Score: <strong>${score} / ${questions.length}</strong>`;
+
+      if(wrongList.length){
+        detailedWrong.innerHTML = '<h4>Review incorrect</h4>' + wrongList.map(i=>{
+          return `<div style="padding:8px;border-radius:8px;border:1px solid #fee2e2;margin-bottom:8px"><strong>Q${i+1}.</strong> ${questions[i].q}<br> Your answer: <em>${answers[i]===null? 'No answer' : questions[i].options[answers[i]]}</em><br> Correct: <strong>${questions[i].options[questions[i].a]}</strong></div>`;
+        }).join('');
+      } else {
+        detailedWrong.innerHTML = '<div style="padding:8px;border-radius:8px;border:1px solid #ecfdf5;color:green">Excellent — All correct!</div>';
+      }
+
+      // persist to localStorage (simple record)
+      const records = JSON.parse(localStorage.getItem('quiz_records') || '[]');
+      records.push({ name: student.name, roll: student.roll, score, total:questions.length, when: new Date().toISOString() });
+      localStorage.setItem('quiz_records', JSON.stringify(records));
+
+      // scroll to result
+      resultCard.scrollIntoView({behavior:'smooth'});
+
+      // disable final submit to prevent re-submission
+      finalSubmit.disabled = true;
+    });
+
+    restart.addEventListener('click', ()=> location.reload());
+
+    // Registration handler
+    registerForm.addEventListener('submit', (e)=>{
+      e.preventDefault();
+      const nm = studentName.value.trim();
+      const rl = rollNo.value.trim();
+      if(!nm || !rl){ alert('Please enter name and roll number'); return; }
+      student.name = nm; student.roll = rl;
+      showName.textContent = student.name;
+      showRoll.textContent = student.roll;
+
+      // hide register card, show quiz
+      registerCard.style.display = 'none';
+      quizCard.style.display = 'block';
+
+      renderQuestions();
+      window.scrollTo({top:0,behavior:'smooth'});
+    });
+
+    loadDemo.addEventListener('click', ()=>{
+      studentName.value = 'Demo Student';
+      rollNo.value = 'R-001';
+    });
+
+    // If you want the app to restore previous records, you could read localStorage here.
+
+  </script>
+</body>
+</html>
